@@ -92,7 +92,7 @@ gets fixed about 5 seconds after your desktop appears.
 ## Install (quick way)
 
 ```sh
-git clone <this repo's URL>
+git clone https://github.com/Reidafesta/yoga-pro-9-speaker-fix.git
 cd yoga-pro-9-speaker-fix
 sudo ./install.sh
 reboot
