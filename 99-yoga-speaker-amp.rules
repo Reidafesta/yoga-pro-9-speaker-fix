@@ -1,0 +1,2 @@
+# Keep the woofer amps' I2C device out of runtime power saving.
+SUBSYSTEM=="i2c", KERNEL=="i2c-TIAS2781:00", ATTR{power/control}="on"

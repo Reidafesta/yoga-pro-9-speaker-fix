@@ -1,0 +1,11 @@
+[Unit]
+Description=Fix thin Yoga Pro 9 speakers after waking from sleep
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/yoga-speaker-fix.sh 5
+SyslogIdentifier=yoga-speaker-fix
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

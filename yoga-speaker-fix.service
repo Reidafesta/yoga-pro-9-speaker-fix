@@ -1,0 +1,12 @@
+[Unit]
+Description=Fix thin Yoga Pro 9 speakers: reload the woofer amp driver once the user's audio is up
+After=systemd-journald.service systemd-modules-load.service
+
+[Service]
+# "exec" so boot doesn't wait for this; the script itself waits for you to log in.
+Type=exec
+ExecStart=/usr/local/bin/yoga-speaker-fix.sh
+SyslogIdentifier=yoga-speaker-fix
+
+[Install]
+WantedBy=multi-user.target
