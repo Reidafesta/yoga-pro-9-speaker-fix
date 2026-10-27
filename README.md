@@ -1,8 +1,8 @@
 # Lenovo Yoga Pro 9 (16IMH9) on Linux: fixing thin, quiet speakers
 
 On Linux, the speakers of the Lenovo Yoga Pro 9 16IMH9 sound thin, tinny and much too quiet
-on about **half of all boots**. On the other boots they sound fine. This repo explains why and
-contains a small fix that makes every boot sound good.
+after most boots (on the tested laptop, after every boot). This repo explains why and contains a
+small fix that makes every boot sound good.
 
 ## Tested on
 
@@ -27,11 +27,11 @@ If this prints `i2c-TIAS2781:00`, you have them.
 
 ## The problem
 
-- **Symptom:** sometimes, after you turn the laptop on, the speakers sound thin, have no bass
-  and are very quiet, even at 100 % volume. Reboot, and they may sound fine again. It's
-  random, roughly 50/50.
+- **Symptom:** after you turn the laptop on, the speakers sound thin, have no bass and are
+  very quiet, even at 100 % volume. On the tested laptop this happened on every boot. Some
+  people may get a good boot now and then, since the cause seems to be a timing problem.
 - **What's not the cause:** volume, ALSA mixer settings, PipeWire settings and EasyEffects.
-  These were compared on good and bad boots and were identical.
+  These were compared between thin-sounding and good-sounding states and were identical.
 
 ## The cause
 
@@ -46,8 +46,8 @@ On a bad boot, the driver doesn't set the two woofer amps up properly, so they s
 you hear are the tweeters, which explains the thin, quiet sound.
 
 Reading the amps' power register (book 0, page 0, register `0x02`) on a bad boot often gives
-`0x1a`, the amp's power-on default: the driver never set the amp up. On a good boot, the
-register reads `0x00` while sound is playing and `0x02` when nothing is playing. Some bad
+`0x1a`, the amp's power-on default: the driver never set the amp up. Once the driver has set
+the amp up, the register reads `0x00` while sound is playing and `0x02` when nothing is playing. Some bad
 boots also show normal values, so the register can't reliably tell whether a boot is bad. It's
 probably a timing bug in the driver at boot, but the exact bug in the driver hasn't been found.
 
@@ -71,8 +71,8 @@ A small script runs automatically at every boot and after waking from sleep. It:
 4. loads the driver again,
 5. tells PipeWire to close and reopen the speaker output.
 
-The script runs on every boot, good or bad, because a bad boot can't be detected reliably.
-Reloading on a good boot does no harm.
+The script runs on every boot, because a bad boot can't be detected reliably. Reloading when
+the sound is already fine does no harm.
 
 **What you'll notice:** for a few seconds after you log in, the sound may still be thin. It
 gets fixed about 5 seconds after your desktop appears.
