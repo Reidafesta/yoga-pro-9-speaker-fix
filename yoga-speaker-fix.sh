@@ -1,6 +1,6 @@
 #!/bin/sh
 # Yoga Pro 9 speaker fix (see README.md).
-# On about half of all boots the two TAS2781 woofer amps are not set up properly, so only
+# On most boots the two TAS2781 woofer amps are not set up properly, so only
 # the tweeters play and the sound is thin and quiet. Reloading the amp driver AFTER the
 # user's audio (PipeWire) is running, and then making PipeWire close and reopen the speaker
 # output, makes the driver set the amps up correctly.
@@ -61,7 +61,17 @@ echo "driver unloaded after $i retries"
 modprobe $MOD
 sleep 2
 
-# 5. Close and reopen the speaker output, so the driver sets the amps up again.
+# 5. Turn on the driver's "Speaker Force Firmware Load" switch. Without it, the driver only
+#    sets the amps up fully once after loading; later, when the speaker output reopens after
+#    a pause (e.g. switching videos), it just switches them on and the sound is thin again.
+#    With it, every reopen sets the amps up fully (this makes starting playback ~2.5 s slower).
+#    A driver reload resets the switch, so it has to be set here, after step 4.
+for c in /proc/asound/card[0-9]*; do
+	amixer -q -c "${c##*card}" cset iface=CARD,name='Speaker Force Firmware Load' on 2>/dev/null &&
+		echo "force firmware load on (card ${c##*card})"
+done
+
+# 6. Close and reopen the speaker output, so the driver sets the amps up again.
 speaker_users | while read -r uid sink; do
 	upactl "$uid" suspend-sink "$sink" 1
 	sleep 1

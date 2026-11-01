@@ -6,10 +6,11 @@ cd "$(dirname "$0")"
 install -m 755 yoga-speaker-fix.sh /usr/local/bin/yoga-speaker-fix.sh
 install -m 644 yoga-speaker-fix.service yoga-speaker-fix-resume.service /etc/systemd/system/
 install -m 644 99-yoga-speaker-amp.rules /etc/udev/rules.d/
+install -D -m 644 51-yoga-speaker-suspend.conf /etc/wireplumber/wireplumber.conf.d/51-yoga-speaker-suspend.conf
 
 # Fedora uses SELinux: give the new files the right labels.
-restorecon /usr/local/bin/yoga-speaker-fix.sh /etc/systemd/system/yoga-speaker-fix* \
-	/etc/udev/rules.d/99-yoga-speaker-amp.rules 2>/dev/null || true
+restorecon -R /usr/local/bin/yoga-speaker-fix.sh /etc/systemd/system/yoga-speaker-fix* \
+	/etc/udev/rules.d/99-yoga-speaker-amp.rules /etc/wireplumber 2>/dev/null || true
 
 # Remove older versions of this fix, if present.
 for u in yoga-speakers.service yoga-amp-check.service yoga-amp-check-resume.service yoga-amp-check.timer; do

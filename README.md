@@ -61,6 +61,16 @@ What **does** fix it, every time:
 PipeWire is running. Reloading the driver earlier in boot, before login, doesn't help. An
 older version of this fix did that and the sound stayed thin.
 
+**It also goes thin again after pauses.** PipeWire closes the speaker output 5 seconds after
+sound stops (pausing or switching a YouTube video is enough). When playback starts again, the
+driver only switches the amps back on. It doesn't reload their DSP program and settings,
+because it thinks they are still loaded, but by then the amps have lost them. The driver has an
+ALSA control for this, **`Speaker Force Firmware Load`**. When it's on, the driver sets the
+amps up fully every time the output opens, and the sound stays good. The catch is that
+opening the output then takes about 2.5 s instead of about 0.3 s, so playback starts late.
+To keep short pauses instant, the fix also tells WirePlumber to keep the speaker output open
+for 5 minutes after sound stops.
+
 ## The fix
 
 A small script runs automatically at every boot and after waking from sleep. It:
@@ -69,7 +79,12 @@ A small script runs automatically at every boot and after waking from sleep. It:
 2. waits until you log in and your audio is running (usually about 20 s after power-on),
 3. unloads the amp driver, retrying for a few seconds if it is still busy loading its firmware,
 4. loads the driver again,
-5. tells PipeWire to close and reopen the speaker output.
+5. turns on the driver's `Speaker Force Firmware Load` control (a driver reload resets it),
+6. tells PipeWire to close and reopen the speaker output.
+
+A WirePlumber setting keeps the speaker output open for 5 minutes after sound stops, so pauses
+and video switches don't hit the ~2.5 s setup delay. After a longer silence, the first sound
+starts about 2.5 s late.
 
 The script runs on every boot, because a bad boot can't be detected reliably. Reloading when
 the sound is already fine does no harm.
@@ -85,6 +100,7 @@ gets fixed about 5 seconds after your desktop appears.
 | `yoga-speaker-fix.service` | Runs the script at every boot. |
 | `yoga-speaker-fix-resume.service` | Runs the script after waking from sleep or hibernation. |
 | `99-yoga-speaker-amp.rules` | Keeps the amps' I2C device from going into power saving. |
+| `51-yoga-speaker-suspend.conf` | WirePlumber setting: keep the speaker output open 5 min after sound stops. |
 | `install.sh` / `uninstall.sh` | Install or remove everything above in one go. |
 | `easyeffects/Yoga Speakers Tuned.json` | Optional EQ preset for better sound (see below). |
 | `extras/amp-status.sh` | Optional: shows the amps' power register, for diagnosing. |
@@ -127,14 +143,23 @@ sudo install -m 644 99-yoga-speaker-amp.rules /etc/udev/rules.d/
 This stops the kernel from putting the amps' I2C connection into power-saving mode. It was part
 of the setup the fix was tested with.
 
-**Step 4 (Fedora and other SELinux systems): fix the file labels.**
+**Step 4: copy the WirePlumber setting.**
 ```sh
-sudo restorecon /usr/local/bin/yoga-speaker-fix.sh /etc/systemd/system/yoga-speaker-fix* /etc/udev/rules.d/99-yoga-speaker-amp.rules
+sudo install -D -m 644 51-yoga-speaker-suspend.conf /etc/wireplumber/wireplumber.conf.d/51-yoga-speaker-suspend.conf
+```
+This keeps the speaker output open for 5 minutes after sound stops, instead of 5 seconds. Each
+time the output reopens, the amps get set up from scratch, which takes about 2.5 s. Change
+`300` in the file to choose a different time. `0` means never close, which removes the delay
+completely but keeps the amps powered all the time.
+
+**Step 5 (Fedora and other SELinux systems): fix the file labels.**
+```sh
+sudo restorecon -R /usr/local/bin/yoga-speaker-fix.sh /etc/systemd/system/yoga-speaker-fix* /etc/udev/rules.d/99-yoga-speaker-amp.rules /etc/wireplumber
 ```
 If you skip this, SELinux may block the script. On distros without SELinux (Ubuntu, Arch),
 skip this step.
 
-**Step 5: tell systemd and udev about the new files, and turn the services on.**
+**Step 6: tell systemd and udev about the new files, and turn the services on.**
 ```sh
 sudo systemctl daemon-reload
 sudo udevadm control --reload
@@ -142,7 +167,7 @@ sudo systemctl enable yoga-speaker-fix.service yoga-speaker-fix-resume.service
 ```
 `enable` means the services start automatically from now on.
 
-**Step 6: reboot and log in.**
+**Step 7: reboot and log in.**
 
 ## Check that it worked
 
@@ -157,6 +182,7 @@ You should see something like this:
 ```
 yoga-speaker-fix[996]: user audio up after 15 s wait
 yoga-speaker-fix[996]: driver unloaded after 0 retries
+yoga-speaker-fix[996]: force firmware load on (card 0)
 yoga-speaker-fix[996]: speakers reopened for yourname
 yoga-speaker-fix[996]: done
 ```
@@ -228,6 +254,8 @@ To save you time:
   up the amps yet, so the reload does nothing.
 - Reloading the driver after the amps are picked up but before login: the register looks
   configured, but the sound stays thin.
+- Turning off power saving with `snd_hda_intel power_save=0`: this laptop's audio runs through
+  Intel's SOF driver, which ignores that setting.
 - Flipping the power register to "on" by hand with `i2cset`: it gets louder, but the sound is
   distorted, because the rest of the amp's settings are still missing.
 
