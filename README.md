@@ -117,6 +117,10 @@ reboot
 No git? On the repo's GitHub page, click **Code → Download ZIP**, unzip it, open a terminal in
 the folder, and run `sudo ./install.sh`.
 
+The speaker output then stays open for 5 minutes after sound stops. To choose a different time,
+give it in seconds, for example `sudo ./install.sh 600` for 10 minutes. See
+[Changing the 5-minute timer](#changing-the-5-minute-timer).
+
 ## Install (by hand, step by step)
 
 This does exactly what `install.sh` does. Run these commands from inside the repo folder.
@@ -148,9 +152,9 @@ of the setup the fix was tested with.
 sudo install -D -m 644 51-yoga-speaker-suspend.conf /etc/wireplumber/wireplumber.conf.d/51-yoga-speaker-suspend.conf
 ```
 This keeps the speaker output open for 5 minutes after sound stops, instead of 5 seconds. Each
-time the output reopens, the amps get set up from scratch, which takes about 2.5 s. Change
-`300` in the file to choose a different time. `0` means never close, which removes the delay
-completely but keeps the amps powered all the time.
+time the output reopens, the amps get set up from scratch, which takes about 2.5 s. To choose a
+different time, change `300` in the copied file (see
+[Changing the 5-minute timer](#changing-the-5-minute-timer)).
 
 **Step 5 (Fedora and other SELinux systems): fix the file labels.**
 ```sh
@@ -188,6 +192,50 @@ yoga-speaker-fix[996]: done
 ```
 
 Then play some music. It should sound full, with bass.
+
+## Changing the 5-minute timer
+
+When sound stops, the speaker output stays open for a while before it closes and the amps power
+down. **The default is 300 seconds (5 minutes).** WirePlumber's own default is only 5 seconds,
+which is too short with this fix. Every time the output opens again, the amps get set up from
+scratch, so the first sound comes about 2.5 s late. Pausing a video or skipping to the next one
+would hit that delay every time.
+
+How to pick a value:
+
+| Value | What you get |
+|---|---|
+| `300` (default) | Pauses under 5 minutes start again instantly. After a longer silence, the first sound is ~2.5 s late. |
+| Larger, e.g. `1800` | The delay comes up less often. The amps stay powered for longer after you stop playing. |
+| Smaller, e.g. `30` | The amps power down sooner, but you hit the delay more often. |
+| `0` | Never closes, so there's never a delay. The amps stay powered all the time, which may cost a little battery. |
+
+**Easiest way:** run the installer again from the repo folder, with the new time in seconds:
+
+```sh
+sudo ./install.sh 600
+systemctl --user restart wireplumber
+```
+
+The second command applies the change right away. Run it as yourself, without `sudo`. It
+doesn't undo the fix. If you run `sudo ./install.sh` later without a number (for example after
+updating the repo), it keeps the time you chose.
+
+**By hand:** the setting is one line in
+`/etc/wireplumber/wireplumber.conf.d/51-yoga-speaker-suspend.conf`:
+
+```
+session.suspend-timeout-seconds = 300
+```
+
+Edit it with `sudoedit /etc/wireplumber/wireplumber.conf.d/51-yoga-speaker-suspend.conf`,
+change the number, save, and run `systemctl --user restart wireplumber`.
+
+**Check the value in use:**
+
+```sh
+pw-cli info "$(pactl list short sinks | awk '/Speaker__sink/ {print $2}')" | grep suspend-timeout
+```
 
 ## Sound still thin? Run the fix by hand
 
